@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Parser</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Order Parser</h1>
+      <div>
+        <button id="home-page-button" class="blue-round-button">Home</button>
+        <button id="items-page-button" class="blue-round-button">Items</button>
+      </div>
+      <div id="home-container">
+        <div class="checkbox-container">
+          <input type="checkbox" id="exclude-drinks" />
+          <p>Drinks</p>
+        </div>
+        <input type="file" id="pdfFile" accept="application/pdf" multiple style="margin-top: 40px;"/>
+        <button id="parsePdfButton" class="blue-round-button">Parse PDF</button>
+        <div id="loadingText">Loading...</div>
+      </div>
+      <div id="add-remove-display-items-container">
+        <form id="add-items-container">
+          <h3>Add Item</h3>
+          <div class="radio-inputs">
+            <input
+              type="radio"
+              name="option"
+              id="option01"
+              value="stationOneItems"
+              checked
+            />
+            <label for="option01" style="margin-right: 15px; margin-left: 5px"
+              >Western Side</label
+            >
+            <input
+              type="radio"
+              name="option"
+              id="option02"
+              value="stationTwoItems"
+            />
+            <label for="option02" style="margin-right: 15px; margin-left: 5px"
+              >Chinese Side</label
+            >
+            <input type="radio" name="option" id="option03" value="jumpItems" />
+            <label for="option04" style="margin-right: 15px; margin-left: 5px"
+              >Jump Items</label
+            >
+            <input
+              type="radio"
+              name="option"
+              id="option04"
+              value="excludedDrinks"
+            />
+            <label for="option04" style="margin-right: 15px; margin-left: 5px"
+              >Exclude Drink</label
+            >
+          </div>
+          <div class="add-items-input-button-container">
+            <input type="text" id="add-item-input-text" name="inputText" minlength="1" />
+            <button type="submit" class="blue-round-button">Submit</button>
+          </div>
+        </form>
+        <div id="items-container"></div>
+      </div>
+      <div id="delete-modal">
+        <div class="delete-modal-container">
+          <h2>Confirm Delete Item</h2>
+          <p id="delete-modal-item-key" style="display: none"></p>
+          <p id="delete-modal-item-name"></p>
+          <div>
+            <button id="confirm-delete-item-modal" class="blue-round-button">
+              Confirm
+            </button>
+            <button id="cancel-delete-item-modal" class="blue-round-button">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="alert-box">
+        <div class="alert-box-container">
+          <h2>Alert!</h2>
+          <p id="alert-box-message"></p>
+          <div>
+            <button id="confirm-alert-box-modal" class="blue-round-button">
+              Ok
+            </button>
+          </div>
+        </div>
+      </div>
+
+    <script src="./index.js"></script>
+  </body>
+</html>

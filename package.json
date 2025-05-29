@@ -1,0 +1,43 @@
+{
+  "author": "Order Parser",
+  "name": "order-parser",
+  "version": "1.0.3",
+  "description": "PDF order parser",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^25.9.8",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^3.0.0"
+  },
+  "build": {
+    "appId": "order-parser",
+    "productName": "Order Parser",
+    "files": [
+      "index.html",
+      "print.html",
+      "styles.css",
+      "main.js",
+      "preload.js",
+      "parseOrderDetails.js",
+      "index.js",
+      "print.js",
+      "items.js",
+      "data.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}
