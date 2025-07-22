@@ -1,6 +1,5 @@
-window.api.receiveContent((content) => {
+window.api.receiveContent((content, contentSummary) => {
   const outputPrint = document.getElementById("output-print");
-
   // Clear existing content
   outputPrint.innerHTML = "";
 
@@ -61,7 +60,56 @@ window.api.receiveContent((content) => {
         currentHeight = 0; // Reset current height for the new page
       }
     }
-  });
+  }); 
+  
+  // Add contentSummary on a new page  
+  if (contentSummary && contentSummary.trim() !== "") {
+    currentPage = document.createElement("div");
+    currentPage.className = "page";
+    outputPrint.appendChild(currentPage);
+    currentHeight = 0;
+
+    const summaryContainer = document.createElement("div");
+    summaryContainer.style.visibility = "hidden";
+    summaryContainer.style.position = "absolute";
+    summaryContainer.style.width = "8.5in";
+    summaryContainer.innerHTML = contentSummary;
+    document.body.appendChild(summaryContainer);
+
+    const addSummaryLabel = (page) => {
+      const label = document.createElement("div");
+      label.textContent = `Summary Printed(${new Date().getDate()}/${new Date().getMonth()}/${new Date().getFullYear()})`;
+      label.style.fontWeight = "bold";
+      label.style.fontSize = "1.5rem";
+      label.style.marginTop = "4rem";
+      label.style.marginBottom = "1rem";
+      page.appendChild(label);
+      currentHeight += label.offsetHeight;
+    };
+
+    // First summary page: add Summary header
+    addSummaryLabel(currentPage);
+
+    Array.from(summaryContainer.children).forEach((child) => {
+      const clone = child.cloneNode(true);
+      currentPage.appendChild(clone);
+      const cloneHeight = clone.offsetHeight;
+
+      if (currentHeight + cloneHeight > availableHeight) {
+        currentPage.removeChild(clone);
+        currentPage = document.createElement("div");
+        currentPage.className = "page";
+        outputPrint.appendChild(currentPage);
+        currentHeight = 0;
+        addSummaryLabel(currentPage);
+        currentPage.appendChild(clone);
+      }
+
+      currentHeight += cloneHeight;
+    });
+
+    document.body.removeChild(summaryContainer);
+  }
 
   // Add page numbers
   const pages = outputPrint.querySelectorAll(".page");
