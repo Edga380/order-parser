@@ -20,6 +20,7 @@ async function extractTextFromPDF(arrayBuffer) {
 async function parseOrderDetails(extractedText, excludeDrinks) {
   const jsonData = await getItems();
   const orderRegex = /(?<!\S)\d(?!\s*\/)\s+(.+?)(?=\s+#\d+)/g;
+  const pageBreakRegex = /PAGE_BREAK==(-\s+\D+)/;
 
   const excludedDrinks = jsonData.excludedDrinks.items;
   const excludedText = jsonData.excludedText.items;
@@ -30,26 +31,22 @@ async function parseOrderDetails(extractedText, excludeDrinks) {
   let excludedExtractedText = removeReplaceText(extractedText, excludedText);
 
   const orderCounts = {};
-
-  let collectionTime = getCollectionTime(excludedExtractedText);
-
-  let date = getOrderDate(excludedExtractedText);
+  const collectionTime = getCollectionTime(excludedExtractedText);
+  const date = getOrderDate(excludedExtractedText);
 
   let match;
   let lastMatch;
   let lastMatchQuantity;
+  let lastMatchItemStationOne;
+  let lastMatchItemStationTwo
   let pageBreakMatch;
 
   while ((match = orderRegex.exec(excludedExtractedText)) !== null) {
-    let orderName = match[1].trim();
-    let itemQuantity = parseInt(
-      match[0].trim().replace(/\s+/g, " ").split(" ")[0]
-    );
+    let orderName = match[1].trim().replace(/\s+/g, " ");
+    let itemQuantity = parseInt(match[0].trim().split(" ")[0]);
 
-    orderName = orderName.replace(/\s+/g, " ").trim();
-
-    const itemStationOne = stationOneItems.some((item) => item === orderName);
-    const itemStationTwo = stationTwoItems.some((item) => item === orderName);
+    const itemStationOne = stationOneItems.includes(orderName);
+    const itemStationTwo = stationTwoItems.includes(orderName);
 
     if (
       excludeDrinks &&
@@ -58,34 +55,60 @@ async function parseOrderDetails(extractedText, excludeDrinks) {
       continue;
     }
 
-    if (orderCounts[orderName]) {
-      orderCounts[orderName].quantity += itemQuantity;
+    const bothSidesST1 = "WS";
+    const bothSidesST2 = "CS";
+
+    const hasBothSides = 
+      orderCounts[`${orderName} + ${bothSidesST1}`] && 
+      orderCounts[`${orderName} + ${bothSidesST2}`]
+
+    if (orderCounts[orderName] || hasBothSides) {
+      if (itemStationOne && itemStationTwo) {
+        if (orderCounts[`${orderName} + ${bothSidesST1}`])
+          orderCounts[`${orderName} + ${bothSidesST1}`].quantity += itemQuantity;
+        if (orderCounts[`${orderName} + ${bothSidesST2}`])
+          orderCounts[`${orderName} + ${bothSidesST2}`].quantity += itemQuantity;
+      } else if (orderCounts[orderName]) {
+        orderCounts[orderName].quantity += itemQuantity;
+      }
     } else {
-      orderCounts[orderName] = {
-        quantity: itemQuantity,
-        item: orderName,
-        collection: collectionTime,
-        date: date,
-        stationObject: itemStationOne
-          ? {station: "stationOneItem", name: "Western Side"}
-          : itemStationTwo
-          ? {station: "stationTwoItem", name: "Chinese Side"}
-          : {station: "unknownItems", name: "Unknown items"},
-      };
+      if(itemStationOne && itemStationTwo){
+        orderCounts[`${orderName} + ${bothSidesST1}`] = {
+          quantity: itemQuantity,
+          item: `${orderName} + ${bothSidesST1}`,
+          collection: collectionTime,
+          date: date,
+          stationObject: {station: "stationOneItem", name: "Western Side"}
+        };
+        orderCounts[`${orderName} + ${bothSidesST2}`] = {
+          quantity: itemQuantity,
+          item: `${orderName} + ${bothSidesST2}`,
+          collection: collectionTime,
+          date: date,
+          stationObject: {station: "stationTwoItem", name: "Chinese Side"}
+        };
+      } else {
+        orderCounts[orderName] = {
+          quantity: itemQuantity,
+          item: orderName,
+          collection: collectionTime,
+          date: date,
+          stationObject: itemStationOne
+            ? {station: "stationOneItem", name: "Western Side"}
+            : itemStationTwo
+            ? {station: "stationTwoItem", name: "Chinese Side"}
+            : {station: "unknownItems", name: "Unknown items"},
+        };
+      }
     }
 
-    const pageBreakRegex = /PAGE_BREAK==(-\s+\D+)/;
-
-    if (
-      (pageBreakMatch = pageBreakRegex.exec(excludedExtractedText)) !== null
-    ) {
+    if ((pageBreakMatch = pageBreakRegex.exec(excludedExtractedText)) !== null) {
       let removeNameSurname = pageBreakMatch[1]
         .trim()
         .replace(/\s+/g, " ")
         .split(" ");
       
       const allowedWords = jsonData.jumpItems.items;
-
       removeNameSurname = removeNameSurname.filter((entry) =>
         allowedWords.includes(entry)
       );
@@ -96,31 +119,59 @@ async function parseOrderDetails(extractedText, excludeDrinks) {
           "PAGE_BREAK_DONE"
         );
 
-        if (orderCounts[lastMatch]) {
-          orderCounts[lastMatch].quantity -= lastMatchQuantity;
-          if (orderCounts[lastMatch].quantity === 0) {
-            delete orderCounts[lastMatch];
-          }
-          const reconstructedItemName =
-            lastMatch + " " + removeNameSurname.join(" ");
+        const hadBothSidesLast = 
+          orderCounts[`${lastMatch} + ${bothSidesST1}`] && 
+          orderCounts[`${lastMatch} + ${bothSidesST2}`]
 
-          if (orderCounts[reconstructedItemName]) {
-            orderCounts[reconstructedItemName].quantity += lastMatchQuantity;
+        if (orderCounts[lastMatch] || hadBothSidesLast) {
+          if (lastMatchItemStationOne && lastMatchItemStationTwo) {
+            if (orderCounts[`${lastMatch} + ${bothSidesST1}`])
+              orderCounts[`${lastMatch} + ${bothSidesST1}`].quantity -= lastMatchQuantity;
+            if (orderCounts[`${lastMatch} + ${bothSidesST2}`])
+              orderCounts[`${lastMatch} + ${bothSidesST2}`].quantity -= lastMatchQuantity;
+
+            if (
+              orderCounts[`${lastMatch} + ${bothSidesST1}`] &&
+              orderCounts[`${lastMatch} + ${bothSidesST1}`].quantity === 0
+            )
+              delete orderCounts[`${lastMatch} + ${bothSidesST1}`];
+
+            if (
+              orderCounts[`${lastMatch} + ${bothSidesST2}`] &&
+              orderCounts[`${lastMatch} + ${bothSidesST2}`].quantity === 0
+            )
+              delete orderCounts[`${lastMatch} + ${bothSidesST2}`];
+          } else if (orderCounts[lastMatch]) {
+            orderCounts[lastMatch].quantity -= lastMatchQuantity;
+            if (orderCounts[lastMatch].quantity === 0) {
+              delete orderCounts[lastMatch];
+            }
+          }
+          const reconstructedItemName = `${lastMatch} ${removeNameSurname.join(" ")}`;
+          const itemStationOneNew = stationOneItems.includes(reconstructedItemName);
+          const itemStationTwoNew = stationTwoItems.includes(reconstructedItemName);
+          const hasReconstructedBothSides = 
+            orderCounts[`${reconstructedItemName} + ${bothSidesST1}`] &&
+            orderCounts[`${reconstructedItemName} + ${bothSidesST2}`];
+
+          if (orderCounts[reconstructedItemName] || hasReconstructedBothSides) {
+            if (itemStationOneNew && itemStationTwoNew) {
+              if (orderCounts[`${reconstructedItemName} + ${bothSidesST1}`])
+                orderCounts[`${reconstructedItemName} + ${bothSidesST1}`].quantity += lastMatchQuantity;
+              if (orderCounts[`${reconstructedItemName} + ${bothSidesST2}`])
+                orderCounts[`${reconstructedItemName} + ${bothSidesST2}`].quantity += lastMatchQuantity;
+            } else if (orderCounts[reconstructedItemName]) {
+              orderCounts[reconstructedItemName].quantity += lastMatchQuantity;
+            }
           } else {
-            const itemStationOne = stationOneItems.some(
-              (item) => item === reconstructedItemName
-            );
-            const itemStationTwo = stationTwoItems.some(
-              (item) => item === reconstructedItemName
-            );
             orderCounts[reconstructedItemName] = {
               quantity: lastMatchQuantity,
-              item: itemStationOne || itemStationTwo ? reconstructedItemName : lastMatch + " " + pageBreakMatch[1].trim().replace(/\s+/g, " "),
+              item: reconstructedItemName,
               collection: collectionTime,
               date: date,
-              stationObject: itemStationOne
+              stationObject: itemStationOneNew
               ? {station: "stationOneItem", name: "Western Side"}
-              : itemStationTwo
+              : itemStationTwoNew
               ? {station: "stationTwoItem", name: "Chinese Side"}
               : {station: "unknownItems", name: "Unknown items"},
             };
@@ -129,8 +180,10 @@ async function parseOrderDetails(extractedText, excludeDrinks) {
       }
     }
 
-    lastMatch = match[1].trim();
+    lastMatch = orderName;
     lastMatchQuantity = itemQuantity;
+    lastMatchItemStationOne = itemStationOne;
+    lastMatchItemStationTwo = itemStationTwo;
   }
 
   const orders = Object.values(orderCounts);

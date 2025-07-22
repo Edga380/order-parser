@@ -54,6 +54,35 @@ document
         });
       });
 
+      let mergeOrdersContentSummary = [];
+      let contentSummary = "";
+      orders.forEach((order) => {
+        order.forEach((itemData, index) => {
+          if(itemData.item.endsWith("CS")){
+            return;
+          }
+          const cleanedName = itemData.item.replace(/\s+\+\s*WS$/, "").trim();
+          const existingOrder = mergeOrdersContentSummary.find(
+            (order) => order.item === cleanedName 
+          );
+          if (existingOrder) {
+            existingOrder.quantity += itemData.quantity;
+          } else {
+            mergeOrdersContentSummary.push({...itemData, item: cleanedName});
+          }
+        });
+      });
+
+      mergeOrdersContentSummary.forEach((itemData) => {
+        if (itemData.quantity !== undefined) {
+          contentSummary += `
+          <div class="checkbox-mark-text-container">
+            <div class="checkbox-mark"></div>
+            <div>${itemData.item} X ${itemData.quantity}</div>
+          </div>
+        `;
+        }});
+
       // Prepare content for print preview
       let content = "";
 
@@ -123,7 +152,7 @@ document
         });
 
       // Send content to the print preview page
-      window.api.openPrintPreview(content);
+      window.api.openPrintPreview({content, contentSummary});
     } catch (error) {
       alertBoxMessage.textContent = "Error reading PDF: " + error.message;
       alertBox.style.display = "flex";

@@ -17,10 +17,8 @@ async function getItems() {
 async function addItem(itemName, key) {
   const jsonData = await getItems();
 
-  for (const entryKey in jsonData) {
-    if (jsonData[entryKey].items.some((item) => item === itemName)) {
-      return false;
-    }
+  if (jsonData[key].items.some((item) => item === itemName)) {
+    return false;
   }
 
   jsonData[key].items.push(itemName);
